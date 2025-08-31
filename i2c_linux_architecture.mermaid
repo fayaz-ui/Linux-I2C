@@ -1,0 +1,129 @@
+graph TB
+    %% User Space
+    subgraph USPACE["User Space"]
+        USERAPP["User Applications<br/>i2c-tools, sensors"]
+        I2CDEV["/dev/i2c-N<br/>Character Device Interface"]
+        SYSFS["/sys/bus/i2c/<br/>SysFS Interface"]
+    end
+    
+    %% Kernel Space - I2C Core
+    subgraph KCORE["Kernel Space - I2C Core"]
+        %% I2C Core Layer
+        subgraph CORE["I2C Core Layer"]
+            COREAPI["I2C Core API<br/>i2c_add_adapter()<br/>i2c_new_client_device()<br/>i2c_transfer()"]
+            BUSREG["Bus Registration<br/>i2c_register_driver()<br/>i2c_add_numbered_adapter()"]
+            MATCH["Device-Driver Matching<br/>i2c_device_match()<br/>of_match_table"]
+        end
+        
+        %% Algorithm Layer
+        subgraph ALGO["Algorithm Layer"]
+            ALGOAPI["Algorithm Interface<br/>struct i2c_algorithm"]
+            BITBANG["Bit-bang Algorithm<br/>i2c-algo-bit"]
+            PCFALGO["PCF Algorithm<br/>i2c-algo-pcf"]
+        end
+        
+        %% Character Device Interface
+        subgraph CHARDEV["Character Device"]
+            I2CDEVCORE["i2c-dev Core<br/>/dev/i2c-N implementation"]
+            DEVFOPS["Device File Operations<br/>i2c_dev_read/write/ioctl"]
+        end
+    end
+    
+    %% Device Drivers
+    subgraph DRIVERS["Device Drivers"]
+        %% I2C Client Drivers
+        subgraph CLIENTS["I2C Client Drivers"]
+            SENSOR["Sensor Drivers<br/>lm75, bmp280, etc."]
+            RTC["RTC Drivers<br/>ds1307, rtc-pcf8563"]
+            EEPROM["EEPROM Drivers<br/>at24, ee1004"]
+            CUSTOM["Custom I2C Drivers"]
+        end
+        
+        %% I2C Adapter Drivers
+        subgraph ADAPTERS["I2C Adapter/Bus Drivers"]
+            I801["Intel i801<br/>SMBus Controller"]
+            BCMGPIO["BCM GPIO I2C<br/>Raspberry Pi"]
+            OMAP["OMAP I2C<br/>TI Processors"]
+            DESIGNWARE["DesignWare I2C<br/>Synopsys IP"]
+            GPIOBB["GPIO Bit-bang<br/>i2c-gpio"]
+        end
+    end
+    
+    %% Hardware Layer
+    subgraph HARDWARE["Hardware Layer"]
+        %% I2C Controllers
+        subgraph CONTROLLERS["I2C Controllers"]
+            HW_I801["Intel PCH<br/>I2C/SMBus Controller"]
+            HW_GPIO["GPIO Pins<br/>SDA/SCL"]
+            HW_DEDICATED["Dedicated I2C<br/>Controller IP"]
+        end
+        
+        %% I2C Bus and Devices
+        subgraph I2CBUS["I2C Physical Bus"]
+            PHYSBUS["Physical I2C Bus<br/>SDA (Data)<br/>SCL (Clock)"]
+            PULLUP["Pull-up Resistors<br/>4.7kΩ typical"]
+        end
+        
+        %% I2C Devices
+        subgraph DEVICES["I2C Slave Devices"]
+            TEMP["Temperature Sensor<br/>Address: 0x48"]
+            ACCEL["Accelerometer<br/>Address: 0x1C"]
+            DISPLAY["OLED Display<br/>Address: 0x3C"]
+            MEMORY["EEPROM<br/>Address: 0x50"]
+        end
+    end
+    
+    %% Data Flow Connections
+    %% User Space to Kernel
+    USERAPP --> I2CDEV
+    USERAPP --> SYSFS
+    I2CDEV --> I2CDEVCORE
+    SYSFS --> COREAPI
+    
+    %% Core connections
+    I2CDEVCORE --> DEVFOPS
+    DEVFOPS --> COREAPI
+    COREAPI --> BUSREG
+    COREAPI --> MATCH
+    BUSREG --> ALGOAPI
+    
+    %% Algorithm connections
+    ALGOAPI --> BITBANG
+    ALGOAPI --> PCFALGO
+    
+    %% Driver connections
+    COREAPI <--> CLIENTS
+    MATCH --> CLIENTS
+    BUSREG <--> ADAPTERS
+    ALGOAPI <--> ADAPTERS
+    
+    %% Hardware connections
+    ADAPTERS --> CONTROLLERS
+    I801 --> HW_I801
+    BCMGPIO --> HW_GPIO
+    OMAP --> HW_DEDICATED
+    GPIOBB --> HW_GPIO
+    
+    %% Physical connections
+    CONTROLLERS --> PHYSBUS
+    PHYSBUS --> PULLUP
+    PHYSBUS --> DEVICES
+    
+    %% Device mapping
+    SENSOR <-.-> TEMP
+    RTC <-.-> DEVICES
+    EEPROM <-.-> MEMORY
+    CUSTOM <-.-> DEVICES
+    
+    %% Styling
+    classDef userspace fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef kernelcore fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef drivers fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef hardware fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef physical fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class USPACE userspace
+    class KCORE kernelcore
+    class DRIVERS drivers
+    class HARDWARE hardware
+    class I2CBUS,DEVICES physical
